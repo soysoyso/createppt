@@ -1781,11 +1781,16 @@ function refreshPreviewMaps(force=false) {
       if(st) st.textContent = b.station ? '역/포인트 표시됨' : '캡처됨';
     }
   });
-  // ② 미캐시 항목만 새로 로드
+  // ② 미캐시 항목만 새로 로드 — Nominatim/Kakao Rate Limit(429) 방지를 위해 순차 처리 + 간격 적용
   const targets = entries.filter(({b}) => !b.mapCapture || b.mapCaptureKey !== mapOptionKey(b));
   if(targets.length > 0) startGeoProgress(targets.length);
-  targets.forEach(({i}) => initPreviewMap(i));
-  refreshPptDependentPreviews();
+  (async () => {
+    for(const {i} of targets) {
+      await initPreviewMap(i);
+      await new Promise(r => setTimeout(r, 300)); // 호출 간 최소 0.3초 간격 (요청 폭주 방지)
+    }
+    refreshPptDependentPreviews();
+  })();
 }
 
 // 역명 정규화 (공백 제거) — 보정 테이블 키로 사용
